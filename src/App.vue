@@ -1,27 +1,32 @@
-<template>
-  <img alt="Vue logo" src="./assets/logo.png">
-  <HelloWorld msg="Welcome to Your Vue.js + TypeScript App"/>
-</template>
+<script setup lang="ts">
+import ChessBoard from './components/ChessBoard.vue'
+import { PureEvaluateAI } from './game/ai'
+import { ChessAIClient, PlayerClient, LocalGame } from './game/game'
 
-<script lang="ts">
-import { defineComponent } from 'vue';
-import HelloWorld from './components/HelloWorld.vue';
+const isEval = true
 
-export default defineComponent({
-  name: 'App',
-  components: {
-    HelloWorld
+const seed = Math.random().toString()
+// const seed = '5'
+const game = new LocalGame(seed, [
+  new PlayerClient(),
+  new ChessAIClient(new PureEvaluateAI()),
+  new ChessAIClient(new PureEvaluateAI()),
+  new ChessAIClient(new PureEvaluateAI())
+])
+
+game.start()
+
+async function main() {
+  for (let i = 0; i < 10000; i++) {
+    //
   }
-});
+}
+
+main()
 </script>
 
-<style>
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
-}
-</style>
+<template>
+  <chess-board
+    :client="(game.games[0].clients[0] as PlayerClient)"
+  ></chess-board>
+</template>
