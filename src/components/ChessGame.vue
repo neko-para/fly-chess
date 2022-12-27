@@ -11,7 +11,7 @@ const props = defineProps<{
   client: PlayerClient
 }>()
 
-const size = 360
+const size = Math.floor((document.body.clientWidth - 5) / 10 - 1) * 10
 const canvasEl = ref<HTMLCanvasElement | null>(null)
 
 const test = new Smoother()
@@ -153,7 +153,7 @@ const chesses: {
 
 function draw(ctx: CanvasRenderingContext2D): () => void {
   const bg = new Path2D()
-  bg.rect(0, 0, size, size)
+  bg.rect(0, 0, 360, 360)
 
   const ball = new Path2D()
   ball.ellipse(0, 0, 8, 8, 0, 0, Math.PI * 2)
@@ -419,8 +419,12 @@ props.client.clientSlot.bind(async msg => {
   <div class="ma-auto">
     <canvas
       ref="canvasEl"
-      :width="size"
-      :height="size"
+      :style="{
+        width: `${size}px`,
+        height: `${size}px`,
+      }"
+      width="360"
+      height="360"
       @click="onClick"
     ></canvas>
   </div>
