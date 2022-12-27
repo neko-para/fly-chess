@@ -389,8 +389,8 @@ function onClick(ev: MouseEvent) {
       i as ChessID,
       props.client.slave.game.data.chess[0][i as ChessID]
     )
-    const dx = ev.offsetX - cp[0]
-    const dy = ev.offsetY - cp[1]
+    const dx = (ev.offsetX * 360) / size - cp[0]
+    const dy = (ev.offsetY * 360) / size - cp[1]
     if (dx * dx + dy * dy < 144) {
       choice = i as ChessID
       break

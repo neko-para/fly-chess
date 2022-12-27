@@ -99,7 +99,14 @@ export class PlayerClient implements ChessClient {
           setTimeout(() => {
             this.clientSignal.emit(0)
           }, 0)
-        } else if (ok.length === 1) {
+        } else if (
+          ok.length === 1 ||
+          ok.filter(
+            x =>
+              this.slave.game.data.chess[0][x] ===
+              this.slave.game.data.chess[0][ok[0]]
+          ).length === ok.length
+        ) {
           setTimeout(() => {
             this.clientSignal.emit(ok[0])
           }, 0)
@@ -229,12 +236,7 @@ export class ChessGame implements GameInfo, Game<ChessID, OutputMsg> {
       const roll = this.gen.int(1, 6) as RollResult
       this.data.roll = roll
 
-      await this.clientSignal.emit({
-        msg: 'start',
-        player: this.data.current,
-      })
-      const choice = await this.queue.pop()
-
+      let choice: ChessID = 0
       const ok: ChessID[] = []
       for (let i = 0; i < 4; i++) {
         const p = this.data.chess[this.data.current][i as ChessID]
@@ -242,17 +244,27 @@ export class ChessGame implements GameInfo, Game<ChessID, OutputMsg> {
           ok.push(i as ChessID)
         }
       }
-
       if (ok.length === 0) {
+        await this.clientSignal.emit({
+          msg: 'start',
+          player: this.data.current,
+        })
+        choice = await this.queue.pop()
         await this.clientSignal.emit({
           msg: 'end',
           player: this.data.current,
         })
         this.data.current = ((this.data.current + 1) % 4) as PlayerID
         continue
-      } else if (!ok.includes(choice)) {
-        continue
       }
+
+      do {
+        await this.clientSignal.emit({
+          msg: 'start',
+          player: this.data.current,
+        })
+        choice = await this.queue.pop()
+      } while (!ok.includes(choice))
 
       const prev = this.data.chess[this.data.current][choice]
       const step: number[] = []
