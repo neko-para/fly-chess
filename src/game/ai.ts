@@ -1,4 +1,4 @@
-import { ChessAI, ChessID, PlayerID, RollResult } from './types'
+import type { ChessAI, ChessID, PlayerID, RollResult } from './types'
 
 export class RandomAI implements ChessAI {
   async eval(

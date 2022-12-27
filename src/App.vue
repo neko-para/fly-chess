@@ -1,32 +1,28 @@
 <script setup lang="ts">
-import ChessBoard from './components/ChessBoard.vue'
-import { PureEvaluateAI } from './game/ai'
-import { ChessAIClient, PlayerClient, LocalGame } from './game/game'
+import { Smoother } from './game/smoother'
+import { useConfigStore } from './stores/config'
 
-const isEval = true
+const store = useConfigStore()
+store.$subscribe((mutation, state) => {
+  Smoother.increament = 1 / state.animationSpeed
 
-const seed = Math.random().toString()
-// const seed = '5'
-const game = new LocalGame(seed, [
-  new PlayerClient(),
-  new ChessAIClient(new PureEvaluateAI()),
-  new ChessAIClient(new PureEvaluateAI()),
-  new ChessAIClient(new PureEvaluateAI())
-])
+  localStorage.setItem('config', JSON.stringify(state))
+})
 
-game.start()
-
-async function main() {
-  for (let i = 0; i < 10000; i++) {
-    //
-  }
+const save = localStorage.getItem('config')
+if (save) {
+  const obj = JSON.parse(save)
+  store.$patch({
+    animationSpeed: obj.animationSpeed,
+    actionSpeed: obj.actionSpeed,
+  })
 }
-
-main()
 </script>
 
 <template>
-  <chess-board
-    :client="(game.games[0].clients[0] as PlayerClient)"
-  ></chess-board>
+  <v-app>
+    <v-main>
+      <router-view />
+    </v-main>
+  </v-app>
 </template>

@@ -1,9 +1,14 @@
-import { Client } from '@nekosu/game-framework'
+import type { Client } from '@nekosu/game-framework'
 import type { ChessGame } from './game'
 
 export type PlayerID = 0 | 1 | 2 | 3
 export type ChessID = 0 | 1 | 2 | 3
 export type RollResult = 1 | 2 | 3 | 4 | 5 | 6
+
+export interface OutputMsg {
+  msg: 'start' | 'end'
+  player: PlayerID
+}
 
 export interface ChessAI {
   eval(
@@ -12,7 +17,7 @@ export interface ChessAI {
   ): Promise<ChessID>
 }
 
-export interface ChessClient extends Client<ChessID, PlayerID, ChessGame> {
+export interface ChessClient extends Client<ChessID, OutputMsg, ChessGame> {
   ID: PlayerID
 }
 

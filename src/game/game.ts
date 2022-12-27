@@ -1,42 +1,43 @@
 import { reactive, computed } from 'vue'
 import { Random, RNG } from 'random'
-import {
+import type {
   ChessID,
   ChessAI,
   GameInfo,
   PlayerID,
   RollResult,
-  ChessClient
+  ChessClient,
+  OutputMsg,
 } from './types'
 import {
   AsyncQueue,
-  Game,
+  type Game,
   MasterGame,
   SlaveGame,
-  ClientConnection,
+  type ClientConnection,
   Signal,
   Slot,
-  Broadcast
+  Broadcast,
 } from '@nekosu/game-framework'
 
 export class ChessAIClient implements ChessClient {
-  slave: SlaveGame<ChessID, PlayerID, ChessGame> | null
+  slave: SlaveGame<ChessID, OutputMsg, ChessGame>
   clientSignal: Signal<ChessID>
-  clientSlot: Slot<PlayerID>
+  clientSlot: Slot<OutputMsg>
 
   ai: ChessAI
   ID: PlayerID
 
-  constructor(ai: ChessAI) {
-    this.slave = null
+  constructor(sg: SlaveGame<ChessID, OutputMsg, ChessGame>, ai: ChessAI) {
+    this.slave = sg
     this.clientSignal = new Signal()
     this.clientSlot = new Slot()
     this.ai = ai
     this.ID = 0
 
-    this.clientSlot.bind(async player => {
-      if (this.ID === player) {
-        const g = this.slave as SlaveGame<ChessID, PlayerID, ChessGame>
+    this.clientSlot.bind(async msg => {
+      if (this.ID === msg.player && msg.msg === 'start') {
+        const g = this.slave as SlaveGame<ChessID, OutputMsg, ChessGame>
         const choice = await this.ai.eval(g.game.data.roll, pos => {
           const rp = ((pos + this.ID) % 4) as PlayerID
           return g.game.data.chess[rp]
@@ -48,9 +49,9 @@ export class ChessAIClient implements ChessClient {
 }
 
 export class PlayerClient implements ChessClient {
-  slave: SlaveGame<ChessID, PlayerID, ChessGame> | null
+  slave: SlaveGame<ChessID, OutputMsg, ChessGame>
   clientSignal: Signal<ChessID>
-  clientSlot: Slot<PlayerID>
+  clientSlot: Slot<OutputMsg>
 
   ID: PlayerID
   resolve: ((r: ChessID) => void) | null
@@ -60,41 +61,48 @@ export class PlayerClient implements ChessClient {
     roll: RollResult | -1
   }
 
-  constructor() {
-    this.slave = null
+  constructor(sg: SlaveGame<ChessID, OutputMsg, ChessGame>) {
+    this.slave = sg
     this.clientSignal = new Signal()
     this.clientSlot = new Slot()
     this.ID = 0
     this.resolve = null
     this.data = reactive({
       current: computed<PlayerID>(() => {
-        return this.slave ? this.slave.game.data.current : 0
+        return this.slave.game.data.current
       }),
       input: computed<boolean>(() => {
-        return this.ID === this.slave?.game.data.current
+        return this.ID === this.slave.game.data.current
       }),
-      roll: computed<RollResult | -1>(() => {
-        return this.slave ? this.slave.game.data.roll : -1
-      })
+      roll: computed<RollResult>(() => {
+        return this.slave.game.data.roll
+      }),
     })
 
-    this.clientSlot.bind(async () => {
-      if (this.data.input) {
-        let nostart = true
-        let cho: ChessID | -1 = -1
+    this.clientSlot.bind(async msg => {
+      if (msg.msg === 'start' && this.data.input) {
+        const ok: ChessID[] = []
         for (let i = 0; i < 4; i++) {
-          const pos = this.slave?.game.data.chess[0][i as ChessID] || 0
-          if (![-1, 56].includes(pos)) {
-            nostart = false
-            if (pos === -1 && cho === -1) {
-              cho = i as ChessID
+          const pos = this.slave.game.data.chess[0][i as ChessID]
+          if (pos === 56) {
+            continue
+          }
+          if (pos === -1) {
+            if (this.data.roll === 6) {
+              ok.push(i as ChessID)
             }
+          } else {
+            ok.push(i as ChessID)
           }
         }
-        if (nostart && this.slave?.game.data.roll !== 6) {
+        if (ok.length === 0) {
           setTimeout(() => {
-            this.clientSignal.emit(cho as ChessID)
-          })
+            this.clientSignal.emit(0)
+          }, 0)
+        } else if (ok.length === 1) {
+          setTimeout(() => {
+            this.clientSignal.emit(ok[0])
+          }, 0)
         } else {
           const choice = await new Promise<ChessID>(resolve => {
             this.resolve = resolve
@@ -114,11 +122,11 @@ export class PlayerClient implements ChessClient {
   }
 }
 
-export class ChessGame implements GameInfo, Game<ChessID, PlayerID> {
-  slave: SlaveGame<ChessID, PlayerID, Game<ChessID, PlayerID>>
+export class ChessGame implements GameInfo, Game<ChessID, OutputMsg> {
+  slave: SlaveGame<ChessID, OutputMsg, Game<ChessID, OutputMsg>>
 
   mainBroadcast: Broadcast<ChessID>
-  clientSignal: Signal<PlayerID>
+  clientSignal: Signal<OutputMsg>
 
   gen: Random
   data: {
@@ -133,7 +141,7 @@ export class ChessGame implements GameInfo, Game<ChessID, PlayerID> {
 
   constructor(
     seed: string,
-    slave: SlaveGame<ChessID, PlayerID, Game<ChessID, PlayerID>>
+    slave: SlaveGame<ChessID, OutputMsg, Game<ChessID, OutputMsg>>
   ) {
     this.slave = slave
     this.mainBroadcast = new Broadcast()
@@ -151,38 +159,38 @@ export class ChessGame implements GameInfo, Game<ChessID, PlayerID> {
           0: -1,
           1: -1,
           2: -1,
-          3: -1
+          3: -1,
         },
         1: {
           0: -1,
           1: -1,
           2: -1,
-          3: -1
+          3: -1,
         },
         2: {
           0: -1,
           1: -1,
           2: -1,
-          3: -1
+          3: -1,
         },
         3: {
           0: -1,
           1: -1,
           2: -1,
-          3: -1
-        }
+          3: -1,
+        },
       },
       current: 0,
       fin: {
         0: false,
         1: false,
         2: false,
-        3: false
+        3: false,
       },
       roll: 1,
       animation: computed<boolean>(() => {
         return !this.data.fin[0]
-      })
+      }),
     })
     this.queue = new AsyncQueue()
     this.clients = Array.from({ length: 4 }, () => null)
@@ -217,26 +225,42 @@ export class ChessGame implements GameInfo, Game<ChessID, PlayerID> {
         }
         continue
       }
-      if (this.data.animation) {
-        await new Promise(resolve => {
-          setTimeout(resolve, 100)
-        })
-      }
 
       const roll = this.gen.int(1, 6) as RollResult
       this.data.roll = roll
 
-      await this.clientSignal.emit(this.data.current)
+      await this.clientSignal.emit({
+        msg: 'start',
+        player: this.data.current,
+      })
       const choice = await this.queue.pop()
 
-      const prev = this.data.chess[this.data.current][choice]
-      if (prev === 56) {
+      const ok: ChessID[] = []
+      for (let i = 0; i < 4; i++) {
+        const p = this.data.chess[this.data.current][i as ChessID]
+        if (p !== 56 && (p !== -1 || roll === 6)) {
+          ok.push(i as ChessID)
+        }
+      }
+
+      if (ok.length === 0) {
+        await this.clientSignal.emit({
+          msg: 'end',
+          player: this.data.current,
+        })
+        this.data.current = ((this.data.current + 1) % 4) as PlayerID
+        continue
+      } else if (!ok.includes(choice)) {
         continue
       }
+
+      const prev = this.data.chess[this.data.current][choice]
       const step: number[] = []
       if (prev === -1) {
         if (roll === 6) {
           step.push(0)
+        } else {
+          // error
         }
       } else {
         if (prev + roll === 56) {
@@ -291,11 +315,7 @@ export class ChessGame implements GameInfo, Game<ChessID, PlayerID> {
             }
           }
         }
-        if (this.data.animation) {
-          await new Promise(resolve => {
-            setTimeout(resolve, 500)
-          })
-        }
+        await new Promise(resolve => setTimeout(resolve, 0))
       }
       let win = true
       for (let i = 0; i < 4; i++) {
@@ -306,6 +326,10 @@ export class ChessGame implements GameInfo, Game<ChessID, PlayerID> {
       if (win) {
         this.data.fin[this.data.current] = true
       }
+      await this.clientSignal.emit({
+        msg: 'end',
+        player: this.data.current,
+      })
       if (roll !== 6 || win) {
         this.data.current = ((this.data.current + 1) % 4) as PlayerID
       }
@@ -316,19 +340,24 @@ export class ChessGame implements GameInfo, Game<ChessID, PlayerID> {
 export class LocalGame {
   games: ChessGame[]
 
-  constructor(seed: string, clients: ChessClient[]) {
+  constructor(
+    seed: string,
+    clientFactories: ((
+      sg: SlaveGame<ChessID, OutputMsg, ChessGame>
+    ) => ChessClient)[]
+  ) {
     this.games = []
     const cons: ClientConnection<ChessID>[] = []
     for (let i = 0; i < 4; i++) {
-      const slave = new SlaveGame<ChessID, PlayerID, ChessGame>(sg => {
+      const slave = new SlaveGame<ChessID, OutputMsg, ChessGame>(sg => {
         const game = new ChessGame(seed, sg)
         this.games.push(game)
         return game
       })
       cons.push(slave.getClientConnection())
-      clients[i].ID = i as PlayerID
-      slave.game.clients[i] = clients[i]
-      slave.bind(clients[i])
+      const client = slave.bind(clientFactories[i]) as ChessClient
+      client.ID = i as PlayerID
+      slave.game.clients[i] = client
       slave.poll()
     }
     const master = new MasterGame(cons)
@@ -337,11 +366,13 @@ export class LocalGame {
 
   start() {
     this.games.forEach(g => g.play())
-    // this.games.forEach(g => {
-    //   g.data.chess[0][0] = 56
-    //   g.data.chess[0][1] = 56
-    //   g.data.chess[0][2] = 56
-    //   g.data.chess[0][3] = 55
-    // })
+    /*
+    this.games.forEach(g => {
+        g.data.chess[0][0] = 56
+      g.data.chess[0][1] = 56
+      g.data.chess[0][2] = 56
+      g.data.chess[0][3] = 55
+    })
+    */
   }
 }
