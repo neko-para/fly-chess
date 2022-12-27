@@ -29,6 +29,14 @@ function backToMenu() {
       <v-btn color="red" @click="backToMenu()">返回</v-btn>
     </v-card-actions>
     <v-card-text> 当前种子: {{ route.query.seed }} </v-card-text>
+    <v-card-text>
+      排名:
+      {{
+        game.games[0].data.order
+          .map(i => '红黄蓝绿'.substring(i, i + 1))
+          .join(' ')
+      }}
+    </v-card-text>
     <chess-game
       :client="(game.games[0].clients[0] as PlayerClient)"
     ></chess-game>

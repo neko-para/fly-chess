@@ -141,7 +141,7 @@ export class ChessGame implements GameInfo, Game<ChessID, OutputMsg> {
     current: PlayerID
     fin: Record<PlayerID, boolean>
     roll: RollResult
-    animation: boolean
+    order: PlayerID[]
   }
   queue: AsyncQueue<ChessID>
   clients: (ChessClient | null)[]
@@ -195,9 +195,7 @@ export class ChessGame implements GameInfo, Game<ChessID, OutputMsg> {
         3: false,
       },
       roll: 1,
-      animation: computed<boolean>(() => {
-        return !this.data.fin[0]
-      }),
+      order: [],
     })
     this.queue = new AsyncQueue()
     this.clients = Array.from({ length: 4 }, () => null)
@@ -221,14 +219,8 @@ export class ChessGame implements GameInfo, Game<ChessID, OutputMsg> {
     for (;;) {
       if (this.data.fin[this.data.current]) {
         this.data.current = ((this.data.current + 1) % 4) as PlayerID
-        let allw = true
-        for (let i = 0; i < 4; i++) {
-          if (!this.data.fin[i as PlayerID]) {
-            allw = false
-          }
-        }
-        if (allw) {
-          return 0
+        if (this.data.order.length === 4) {
+          return this.data.order[0]
         }
         continue
       }
@@ -337,6 +329,7 @@ export class ChessGame implements GameInfo, Game<ChessID, OutputMsg> {
       }
       if (win) {
         this.data.fin[this.data.current] = true
+        this.data.order.push(this.data.current)
       }
       await this.clientSignal.emit({
         msg: 'end',
