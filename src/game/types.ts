@@ -27,3 +27,8 @@ export interface GameInfo {
     current: PlayerID
   }
 }
+
+export interface GameConfig {
+  seed: string
+  group: number[]
+}

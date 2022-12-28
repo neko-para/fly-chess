@@ -1,13 +1,20 @@
 <script setup lang="ts">
+import { Decompress } from '@nekosu/game-framework'
 import ChessGame from '@/components/ChessGame.vue'
 import { PureEvaluateAI } from '@/game/ai'
 import { ChessAIClient, LocalGame, PlayerClient } from '@/game/game'
 import { useRouter } from 'vue-router'
 import { useRoute } from 'vue-router'
+import type { GameConfig } from '@/game/types'
 const router = useRouter()
 const route = useRoute()
 
-const game = new LocalGame(route.query.seed as string, [
+const config = Decompress<GameConfig>(route.query.config) || {
+  seed: '0',
+  group: [0, 1, 2, 3],
+}
+
+const game = new LocalGame(config, [
   sg => new PlayerClient(sg),
   sg => new ChessAIClient(sg, new PureEvaluateAI()),
   sg => new ChessAIClient(sg, new PureEvaluateAI()),

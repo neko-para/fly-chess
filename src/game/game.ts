@@ -8,6 +8,7 @@ import type {
   RollResult,
   ChessClient,
   OutputMsg,
+  GameConfig,
 } from './types'
 import {
   AsyncQueue,
@@ -138,6 +139,7 @@ export class ChessGame implements GameInfo, Game<ChessID, OutputMsg> {
   gen: Random
   data: {
     chess: Record<PlayerID, Record<ChessID, number>>
+    group: number[]
     current: PlayerID
     fin: Record<PlayerID, boolean>
     roll: RollResult
@@ -147,7 +149,7 @@ export class ChessGame implements GameInfo, Game<ChessID, OutputMsg> {
   clients: (ChessClient | null)[]
 
   constructor(
-    seed: string,
+    config: GameConfig,
     slave: SlaveGame<ChessID, OutputMsg, Game<ChessID, OutputMsg>>
   ) {
     this.slave = slave
@@ -159,7 +161,7 @@ export class ChessGame implements GameInfo, Game<ChessID, OutputMsg> {
     })
 
     this.gen = new Random()
-    this.gen.use(seed as unknown as RNG)
+    this.gen.use(config.seed as unknown as RNG)
     this.data = reactive({
       chess: {
         0: {
@@ -187,6 +189,7 @@ export class ChessGame implements GameInfo, Game<ChessID, OutputMsg> {
           3: -1,
         },
       },
+      group: config.group,
       current: 0,
       fin: {
         0: false,
@@ -314,7 +317,10 @@ export class ChessGame implements GameInfo, Game<ChessID, OutputMsg> {
               i as PlayerID,
               this.data.chess[i as PlayerID][j as ChessID]
             )
-            if (p === s) {
+            if (
+              p === s &&
+              this.data.group[i] !== this.data.group[this.data.current]
+            ) {
               this.data.chess[i as PlayerID][j as ChessID] = -1
             }
           }
@@ -346,7 +352,7 @@ export class LocalGame {
   games: ChessGame[]
 
   constructor(
-    seed: string,
+    config: GameConfig,
     clientFactories: ((
       sg: SlaveGame<ChessID, OutputMsg, ChessGame>
     ) => ChessClient)[]
@@ -355,7 +361,7 @@ export class LocalGame {
     const cons: ClientConnection<ChessID>[] = []
     for (let i = 0; i < 4; i++) {
       const slave = new SlaveGame<ChessID, OutputMsg, ChessGame>(sg => {
-        const game = new ChessGame(seed, sg)
+        const game = new ChessGame(config, sg)
         this.games.push(game)
         return game
       })

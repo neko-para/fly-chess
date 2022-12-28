@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@mdi/font": "5.9.55",
-    "@nekosu/game-framework": "^1.0.7",
+    "@nekosu/game-framework": "^1.0.11",
     "pinia": "^2.0.28",
     "random": "^4.1.0",
     "roboto-fontface": "*",
