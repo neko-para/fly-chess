@@ -9,7 +9,7 @@ import type { GameConfig } from '@/game/types'
 const router = useRouter()
 const route = useRoute()
 
-const config = Decompress<GameConfig>(route.query.config) || {
+const config = Decompress<GameConfig>(route.query.config as string) || {
   seed: '0',
   group: [0, 1, 2, 3],
 }

@@ -297,9 +297,11 @@ export class ChessGame implements GameInfo, Game<ChessID, OutputMsg> {
           }
           if (fly) {
             const ap = (this.data.current ^ 2) as PlayerID
-            for (let i = 0; i < 4; i++) {
-              if (this.data.chess[ap][i as ChessID] === 53) {
-                this.data.chess[ap][i as ChessID] = -1
+            if (this.data.group[ap] !== this.data.group[this.data.current]) {
+              for (let i = 0; i < 4; i++) {
+                if (this.data.chess[ap][i as ChessID] === 53) {
+                  this.data.chess[ap][i as ChessID] = -1
+                }
               }
             }
           }
